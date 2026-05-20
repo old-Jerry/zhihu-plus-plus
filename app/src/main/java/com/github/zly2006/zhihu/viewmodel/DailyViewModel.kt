@@ -26,7 +26,7 @@ import com.github.zly2006.zhihu.ui.DailySection
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
-import kotlinx.serialization.json.Json
+import io.ktor.http.isSuccess
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -42,15 +42,18 @@ class DailyViewModel : ViewModel() {
         private set
     private var nextDate: String? = null
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        coerceInputValues = true
+    private suspend fun fetchStories(httpClient: HttpClient, url: String): DailyStoriesResponse {
+        val response = httpClient.get(url)
+        if (!response.status.isSuccess()) {
+            throw Exception("获取 $url 失败：HTTP ${response.status.value} ${response.status.description}")
+        }
+        return response.body()
     }
 
     suspend fun loadLatest(httpClient: HttpClient) {
         isLoading = true
         try {
-            val data = httpClient.get("https://news-at.zhihu.com/api/4/stories/latest").body<DailyStoriesResponse>()
+            val data = fetchStories(httpClient, "https://news-at.zhihu.com/api/4/stories/latest")
             sections = listOf(DailySection(data.date, data.stories))
             nextDate = data.date
             error = null
@@ -70,7 +73,7 @@ class DailyViewModel : ViewModel() {
             cal.time = sdf.parse(date)!!
             cal.add(Calendar.DAY_OF_YEAR, 1)
             val nextDay = sdf.format(cal.time)
-            val data = httpClient.get("https://news-at.zhihu.com/api/4/stories/before/$nextDay").body<DailyStoriesResponse>()
+            val data = fetchStories(httpClient, "https://news-at.zhihu.com/api/4/stories/before/$nextDay")
             sections = listOf(DailySection(data.date, data.stories))
             nextDate = data.date
             error = null
@@ -85,7 +88,7 @@ class DailyViewModel : ViewModel() {
         if (isLoadingMore || nextDate == null) return
         isLoadingMore = true
         try {
-            val data = httpClient.get("https://news-at.zhihu.com/api/4/stories/before/$nextDate").body<DailyStoriesResponse>()
+            val data = fetchStories(httpClient, "https://news-at.zhihu.com/api/4/stories/before/$nextDate")
             sections = sections + DailySection(data.date, data.stories)
             nextDate = data.date
         } catch (e: Exception) {
