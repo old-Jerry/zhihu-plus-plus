@@ -29,8 +29,8 @@ data class DailyStoriesResponse(
 data class DailyStory(
     val id: Long,
     val title: String,
-    val url: String,
-    val hint: String,
-    val images: List<String>,
+    val url: String = "",
+    val hint: String = "",
+    val images: List<String> = emptyList(),
     val type: Int,
 )
